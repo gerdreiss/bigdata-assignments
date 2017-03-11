@@ -3,7 +3,9 @@ package wikipedia
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 
-case class WikipediaArticle(title: String, text: String)
+case class WikipediaArticle(title: String, text: String) {
+  def contains(lang: String): Boolean = text.contains(s"$lang ")
+}
 
 object WikipediaRanking {
 
@@ -16,16 +18,20 @@ object WikipediaRanking {
   // Hint: use a combination of `sc.textFile`, `WikipediaData.filePath` and `WikipediaData.parse`
   val wikiRdd: RDD[WikipediaArticle] = sc.textFile(WikipediaData.filePath).map(WikipediaData.parse)
 
+  private def add(x: Int, y: Int): Int = x + y
+
   /** Returns the number of articles on which the language `lang` occurs.
    *  Hint1: consider using method `aggregate` on RDD[T].
    *  Hint2: should you count the "Java" language when you see "JavaScript"?
    *  Hint3: the only whitespaces are blanks " "
    *  Hint4: no need to search in the title :)
    */
-  def occurrencesOfLang(lang: String, rdd: RDD[WikipediaArticle]): Int =
-    rdd.filter(_.text.contains(s"$lang "))
-       .map(_ => 1)
-       .aggregate[Int](0)(_ + _, _ + _)
+  def occurrencesOfLang(lang: String, rdd: RDD[WikipediaArticle]): Int = {
+    def calcOccurrence(occ: Int, article: WikipediaArticle) =
+      if (article.contains(lang)) occ + 1 else occ
+
+    rdd.aggregate[Int](0)(calcOccurrence, add)
+  }
 
   /* (1) Use `occurrencesOfLang` to compute the ranking of the languages
    *     (`val langs`) by determining the number of Wikipedia articles that
@@ -44,7 +50,7 @@ object WikipediaRanking {
    */
   def makeIndex(langs: List[String], rdd: RDD[WikipediaArticle]): RDD[(String, Iterable[WikipediaArticle])] =
     rdd.flatMap(article => langs
-          .filter(lang => article.text.contains(s"$lang "))
+          .filter(article.contains)
           .map(_ -> article))
        .groupByKey
 
@@ -68,9 +74,9 @@ object WikipediaRanking {
    */
   def rankLangsReduceByKey(langs: List[String], rdd: RDD[WikipediaArticle]): List[(String, Int)] =
     rdd.flatMap(article => langs
-          .filter(lang => article.text.contains(s"$lang "))
+          .filter(article.contains)
           .map((_, 1)))
-       .reduceByKey(_ + _)
+       .reduceByKey(add)
        .sortBy(_._2, ascending = false)
        .collect.toList
 
