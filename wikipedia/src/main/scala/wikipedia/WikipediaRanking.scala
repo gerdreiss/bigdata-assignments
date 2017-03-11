@@ -4,7 +4,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 
 case class WikipediaArticle(title: String, text: String) {
-  def contains(lang: String): Boolean = text.contains(s"$lang ")
+  def contains(lang: String): Boolean = text.split(" ").contains(lang)
 }
 
 object WikipediaRanking {
