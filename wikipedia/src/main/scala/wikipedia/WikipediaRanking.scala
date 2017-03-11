@@ -43,7 +43,7 @@ object WikipediaRanking {
    */
   def rankLangs(langs: List[String], rdd: RDD[WikipediaArticle]): List[(String, Int)] =
     langs.map(lang => (lang, occurrencesOfLang(lang, rdd)))
-         .sortWith((occ1, occ2) => occ1._2 > occ2._2)
+         .sortBy(-_._2)
 
   /* Compute an inverted index of the set of articles, mapping each language
    * to the Wikipedia pages in which it occurs.
@@ -61,7 +61,7 @@ object WikipediaRanking {
    *   several seconds.
    */
   def rankLangsUsingIndex(index: RDD[(String, Iterable[WikipediaArticle])]): List[(String, Int)] =
-    index.map(t => (t._1, t._2.size))
+    index.mapValues(_.size)
          .sortBy(_._2, ascending = false)
          .collect.toList
 
