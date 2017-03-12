@@ -114,7 +114,9 @@ class StackOverflow extends Serializable {
       }
     }
 
-    scored.map(t => (firstLangInTag(t._1.tags, langs).map(_ * langSpread).getOrElse(NOT_FOUND), t._2))
+    scored.flatMap { t =>
+      firstLangInTag(t._1.tags, langs).map(idx => (idx * langSpread, t._2))
+    }.cache()
   }
 
 
