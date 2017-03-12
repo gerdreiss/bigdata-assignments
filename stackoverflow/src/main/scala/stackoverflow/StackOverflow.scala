@@ -168,6 +168,13 @@ class StackOverflow extends Serializable {
   @tailrec final def kmeans(means: Array[(Int, Int)], vectors: RDD[(Int, Int)], iter: Int = 1, debug: Boolean = false): Array[(Int, Int)] = {
     val newMeans = means.clone() // you need to compute newMeans
 
+    val tmpMeans = vectors.map(p => (findClosest(p, means), p))
+      .groupByKey()
+      .mapValues(averageVectors)
+      .collect()
+
+    tmpMeans foreach (kv => newMeans update(kv._1, kv._2))
+
     // TODO: Fill in the newMeans array
     val distance = euclideanDistance(means, newMeans)
 
@@ -263,8 +270,8 @@ class StackOverflow extends Serializable {
   //
   //
   def clusterResults(means: Array[(Int, Int)], vectors: RDD[(Int, Int)]): Array[(String, Double, Int, Int)] = {
-    val closest: RDD[(Int, (Int, Int))]                  = vectors.map(p => (findClosest(p, means), p))
-    val closestGrouped: RDD[(Int, Iterable[(Int, Int)])] = closest.groupByKey()
+    val closest = vectors.map(p => (findClosest(p, means), p))
+    val closestGrouped = closest.groupByKey()
 
     val median = closestGrouped.mapValues { (vs: Iterable[(Int, Int)]) =>
       val langLabel: String   = langs(vs.maxBy(_._2)._1 / langSpread) // most common language in the cluster
