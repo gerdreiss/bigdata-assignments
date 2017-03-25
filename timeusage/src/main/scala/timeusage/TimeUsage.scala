@@ -219,10 +219,10 @@ object TimeUsage {
     * Hint: you should use the `groupByKey` and `typed.avg` methods.
     */
   def timeUsageGroupedTyped(summed: Dataset[TimeUsageRow]): Dataset[TimeUsageRow] = {
-    import org.apache.spark.sql.expressions.scalalang.typed.avg
+    import org.apache.spark.sql.expressions.scalalang.typed
 
     summed.groupByKey(row => (row.working, row.sex, row.age))
-      .agg(avg(_.primaryNeeds), avg(_.work), avg(_.other))
+      .agg(typed.avg(_.primaryNeeds), typed.avg(_.work), typed.avg(_.other))
       .orderBy($"key")
       .map { case ((working, sex, age), primaryNeeds, work, other) =>
           TimeUsageRow(
