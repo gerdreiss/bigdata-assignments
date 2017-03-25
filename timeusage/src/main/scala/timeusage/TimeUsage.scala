@@ -29,9 +29,13 @@ object TimeUsage {
   def timeUsageByLifePeriod(): Unit = {
     val (columns, initDf) = read("/timeusage/atussum.csv")
     val (primaryNeedsColumns, workColumns, otherColumns) = classifiedColumns(columns)
-    val summaryDf = timeUsageSummary(primaryNeedsColumns, workColumns, otherColumns, initDf)
-    val finalDf = timeUsageGrouped(summaryDf)
-    finalDf.show()
+    val summaryDf: DataFrame = timeUsageSummary(primaryNeedsColumns, workColumns, otherColumns, initDf)
+    val groupedDf: DataFrame = timeUsageGrouped(summaryDf)
+    val groupedSqlDf: DataFrame = timeUsageGroupedSql(summaryDf)
+    val groupedTypedDs: Dataset[TimeUsageRow] = timeUsageGroupedTyped(timeUsageSummaryTyped(summaryDf))
+    groupedDf.show()
+    groupedSqlDf.show()
+    groupedTypedDs.show()
   }
 
   /** @return The read DataFrame along with its column names. */
@@ -222,7 +226,7 @@ object TimeUsage {
     import org.apache.spark.sql.expressions.scalalang.typed
 
     def roundUp(other: Double) =
-      BigDecimal(other).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
+      BigDecimal(other).setScale(1, BigDecimal.RoundingMode.HALF_UP).toDouble
 
     summed.groupByKey(row => (row.working, row.sex, row.age))
       .agg(typed.avg(_.primaryNeeds), typed.avg(_.work), typed.avg(_.other))
