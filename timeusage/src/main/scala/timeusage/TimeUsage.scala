@@ -133,17 +133,19 @@ object TimeUsage {
     otherColumns: List[Column],
     df: DataFrame
   ): DataFrame = {
-    val workingStatusProjection: Column = ???
-    val sexProjection: Column = ???
-    val ageProjection: Column = ???
+    val workingStatusProjection: Column = when(df("telfs").isin(1, 2), "working").otherwise("not working").as("working")
+    val sexProjection: Column           = when(df("tesex") === 1, "male").otherwise("female").as("sex")
+    val ageProjection: Column           = when(df("teage").between(15, 22), "young").when(df("teage").between(23, 55), "active").otherwise("elder").as("age")
 
-    val primaryNeedsProjection: Column = ???
-    val workProjection: Column = ???
-    val otherProjection: Column = ???
-    df
-      .select(workingStatusProjection, sexProjection, ageProjection, primaryNeedsProjection, workProjection, otherProjection)
+    val primaryNeedsProjection: Column  = sumInHours(primaryNeedsColumns).name("primaryNeeds")
+    val workProjection: Column          = sumInHours(workColumns).name("work")
+    val otherProjection: Column         = sumInHours(otherColumns).name("other")
+
+    df.select(workingStatusProjection, sexProjection, ageProjection, primaryNeedsProjection, workProjection, otherProjection)
       .where($"telfs" <= 4) // Discard people who are not in labor force
   }
+
+  private def sumInHours(columns: List[Column]): Column = columns.foldLeft(lit(0))((l, r) => l + r) / 60
 
   /** @return the average daily time (in hours) spent in primary needs, working or leisure, grouped by the different
     *         ages of life (young, active or elder), sex and working status.
@@ -163,7 +165,10 @@ object TimeUsage {
     * Finally, the resulting DataFrame should be sorted by working status, sex and age.
     */
   def timeUsageGrouped(summed: DataFrame): DataFrame = {
-    ???
+    summed
+      .groupBy(summed("working"), summed("sex"), summed("age"))
+      .agg(round(avg(summed("primaryNeeds")), 1), round(avg(summed("work")), 1), round(avg(summed("other")), 1))
+      .orderBy(summed("working"), summed("sex"), summed("age"))
   }
 
   /**
@@ -180,7 +185,17 @@ object TimeUsage {
     * @param viewName Name of the SQL view to use
     */
   def timeUsageGroupedSqlQuery(viewName: String): String =
-    ???
+    s"""select
+            working,
+            sex,
+            age,
+            round(avg(summed(primaryNeeds)), 1),
+            round(avg(summed(work)), 1),
+            round(avg(summed(other)), 1)
+          from $viewName
+         group by working, sex, age
+         order by working, sex, age
+      """.stripMargin
 
   /**
     * @return A `Dataset[TimeUsageRow]` from the “untyped” `DataFrame`
@@ -190,7 +205,16 @@ object TimeUsage {
     * cast them at the same time.
     */
   def timeUsageSummaryTyped(timeUsageSummaryDf: DataFrame): Dataset[TimeUsageRow] =
-    ???
+    timeUsageSummaryDf.map(row =>
+      TimeUsageRow(
+        working      = row.getAs[String]("working"),
+        sex          = row.getAs[String]("sex"),
+        age          = row.getAs[String]("age"),
+        primaryNeeds = row.getAs[Double]("primaryNeeds"),
+        work         = row.getAs[Double]("work"),
+        other        = row.getAs[Double]("other")
+      ))
+
 
   /**
     * @return Same as `timeUsageGrouped`, but using the typed API when possible
@@ -204,8 +228,21 @@ object TimeUsage {
     * Hint: you should use the `groupByKey` and `typed.avg` methods.
     */
   def timeUsageGroupedTyped(summed: Dataset[TimeUsageRow]): Dataset[TimeUsageRow] = {
-    import org.apache.spark.sql.expressions.scalalang.typed
-    ???
+    import org.apache.spark.sql.expressions.scalalang.typed.avg
+
+    summed.groupByKey(row => (row.working, row.sex, row.age))
+      .agg(avg(_.primaryNeeds), avg(_.work), avg(_.other))
+      .orderBy($"key")
+      .map { case ((working, sex, age), primaryNeeds, work, other) =>
+          TimeUsageRow(
+            working      = working,
+            sex          = sex,
+            age          = age,
+            primaryNeeds = primaryNeeds,
+            work         = work,
+            other        = other
+          )
+      }
   }
 }
 
