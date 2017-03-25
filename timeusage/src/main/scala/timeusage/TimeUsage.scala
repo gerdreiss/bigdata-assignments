@@ -221,6 +221,9 @@ object TimeUsage {
   def timeUsageGroupedTyped(summed: Dataset[TimeUsageRow]): Dataset[TimeUsageRow] = {
     import org.apache.spark.sql.expressions.scalalang.typed
 
+    def roundUp(other: Double) =
+      BigDecimal(other).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
+
     summed.groupByKey(row => (row.working, row.sex, row.age))
       .agg(typed.avg(_.primaryNeeds), typed.avg(_.work), typed.avg(_.other))
       .orderBy($"key")
@@ -229,9 +232,9 @@ object TimeUsage {
             working      = working,
             sex          = sex,
             age          = age,
-            primaryNeeds = primaryNeeds,
-            work         = work,
-            other        = other
+            primaryNeeds = roundUp(primaryNeeds),
+            work         = roundUp(work),
+            other        = roundUp(other)
           )
       }
   }
