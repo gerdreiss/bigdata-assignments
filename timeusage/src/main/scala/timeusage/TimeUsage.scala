@@ -137,9 +137,9 @@ object TimeUsage {
     val sexProjection: Column           = when(df("tesex") === 1, "male").otherwise("female").as("sex")
     val ageProjection: Column           = when(df("teage").between(15, 22), "young").when(df("teage").between(23, 55), "active").otherwise("elder").as("age")
 
-    val primaryNeedsProjection: Column  = sumInHours(primaryNeedsColumns).name("primaryNeeds")
-    val workProjection: Column          = sumInHours(workColumns).name("work")
-    val otherProjection: Column         = sumInHours(otherColumns).name("other")
+    val primaryNeedsProjection: Column  = sumInHours(primaryNeedsColumns).as("primaryNeeds")
+    val workProjection: Column          = sumInHours(workColumns).as("work")
+    val otherProjection: Column         = sumInHours(otherColumns).as("other")
 
     df.select(workingStatusProjection, sexProjection, ageProjection, primaryNeedsProjection, workProjection, otherProjection)
       .where($"telfs" <= 4) // Discard people who are not in labor force
@@ -185,17 +185,7 @@ object TimeUsage {
     * @param viewName Name of the SQL view to use
     */
   def timeUsageGroupedSqlQuery(viewName: String): String =
-    s"""select
-            working,
-            sex,
-            age,
-            round(avg(summed(primaryNeeds)), 1),
-            round(avg(summed(work)), 1),
-            round(avg(summed(other)), 1)
-          from $viewName
-         group by working, sex, age
-         order by working, sex, age
-      """.stripMargin
+    s"select working, sex, age, round(avg(primaryNeeds), 1), round(avg(work), 1), round(avg(other), 1) from $viewName group by working, sex, age order by working, sex, age"
 
   /**
     * @return A `Dataset[TimeUsageRow]` from the “untyped” `DataFrame`
