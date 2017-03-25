@@ -63,14 +63,14 @@ object TimeUsage {
     * @param columnNames Column names of the DataFrame
     */
   def dfSchema(columnNames: List[String]): StructType =
-    ???
+    StructType(StructField(columnNames.head, StringType, nullable = false) :: columnNames.tail.map(StructField(_, DoubleType, nullable = false)))
 
 
   /** @return An RDD Row compatible with the schema produced by `dfSchema`
     * @param line Raw fields
     */
   def row(line: List[String]): Row =
-    ???
+    RowFactory.create(line)
 
   /** @return The initial data frame columns partitioned in three groups: primary needs (sleeping, eating, etc.),
     *         work and other (leisure activities)
@@ -87,9 +87,12 @@ object TimeUsage {
     * 3. other activities (leisure). These are the columns starting with “t02”, “t04”, “t06”, “t07”, “t08”, “t09”,
     *    “t10”, “t12”, “t13”, “t14”, “t15”, “t16” and “t18” (those which are not part of the previous groups only).
     */
-  def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) = {
-    ???
-  }
+  def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) =
+    (
+      columnNames.filter(_.matches("^(t01|t03|t11|t1801|t1803)")).map(new Column(_)),
+      columnNames.filter(_.matches("^(t05|t1805)")).map(new Column(_)),
+      columnNames.filter(_.matches("^(t02|t04|t06|t07|t08|t09|t10|t12|t13|t14|t15|t16|t18)")).map(new Column(_))
+    )
 
   /** @return a projection of the initial DataFrame such that all columns containing hours spent on primary needs
     *         are summed together in a single column (and same for work and leisure). The “teage” column is also
