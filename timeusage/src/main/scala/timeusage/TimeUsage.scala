@@ -70,7 +70,7 @@ object TimeUsage {
     * @param line Raw fields
     */
   def row(line: List[String]): Row =
-    RowFactory.create(line)
+    Row.fromSeq(line.head :: line.tail.map(_.toDouble))
 
   /** @return The initial data frame columns partitioned in three groups: primary needs (sleeping, eating, etc.),
     *         work and other (leisure activities)
@@ -90,11 +90,11 @@ object TimeUsage {
   def classifiedColumns(columnNames: List[String]): (List[Column], List[Column], List[Column]) =
     (
       // “primary needs” activities
-      columnNames.filter(_.matches("^(t01|t03|t11|t1801|t1803)")).map(new Column(_)),
+      columnNames.filter(_.matches("^(t01|t03|t11|t1801|t1803).*")).map(new Column(_)),
       // working activities
-      columnNames.filter(_.matches("^(t05|t1805)")).map(new Column(_)),
+      columnNames.filter(_.matches("^(t05|t1805).*")).map(new Column(_)),
       // other activities
-      columnNames.filter(_.matches("^(t02|t04|t06|t07|t08|t09|t10|t12|t13|t14|t15|t16|t18)")).map(new Column(_))
+      columnNames.filter(_.matches("^(t02|t04|t06|t07|t08|t09|t10|t12|t13|t14|t15|t16|t18).*")).map(new Column(_))
     )
 
   /** @return a projection of the initial DataFrame such that all columns containing hours spent on primary needs
